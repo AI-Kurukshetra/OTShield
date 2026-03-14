@@ -19,6 +19,13 @@ import {
   MOCK_ALERTS,
   MOCK_EVENTS,
 } from '@/src/types';
+import {
+  clearUserState,
+  loadFullState,
+  saveAssets,
+  saveAlerts,
+  saveExports,
+} from '@/src/lib/supabase/persistence';
 
 type SimulationContextValue = {
   assets: Asset[];
@@ -40,6 +47,7 @@ type SimulationContextValue = {
   exportAlertsToSiem: (target: SiemTarget, alertIds?: string[]) => void;
   markNotificationsSeen: () => void;
   dismissToast: (toastId: string) => void;
+  resetWorkspace: () => Promise<void>;
 };
 
 const SimulationContext = React.createContext<SimulationContextValue | null>(null);
@@ -53,17 +61,19 @@ const TOAST_TTL_MS = 4200;
 export function SimulationProvider({ children }: { children: React.ReactNode }) {
   const seededAssets = React.useMemo(() => getSeededAssets(), []);
   const discoveryQueue = React.useMemo(() => getDiscoveryQueue(), []);
+  const seededProgress = React.useMemo(
+    () => Math.round((seededAssets.length / discoveryQueue.length) * 100),
+    [discoveryQueue.length, seededAssets.length],
+  );
 
-  const [assets, setAssets] = React.useState<Asset[]>(seededAssets);
+  const [assets, setAssets] = React.useState<Asset[]>([]);
   const [events, setEvents] = React.useState<NetworkEvent[]>(MOCK_EVENTS);
-  const [alerts, setAlerts] = React.useState<Alert[]>(MOCK_ALERTS);
+  const [alerts, setAlerts] = React.useState<Alert[]>([]);
   const [exportHistory, setExportHistory] = React.useState<SiemExportRecord[]>([]);
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
   const [toasts, setToasts] = React.useState<ToastMessage[]>([]);
   const [discoveryStatus, setDiscoveryStatus] = React.useState<DiscoveryStatus>('Not Started');
-  const [discoveryProgress, setDiscoveryProgress] = React.useState(
-    Math.round((seededAssets.length / discoveryQueue.length) * 100),
-  );
+  const [discoveryProgress, setDiscoveryProgress] = React.useState(0);
   const [monitoringStatus, setMonitoringStatus] = React.useState<MonitoringStatus>('Idle');
 
   const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -71,6 +81,59 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const eventCounterRef = React.useRef(MOCK_EVENTS.length + 1);
   const toastTimeoutsRef = React.useRef<Record<string, NodeJS.Timeout>>({});
   const bootstrapShownRef = React.useRef(false);
+  const hasLoadedInitialStateRef = React.useRef(false);
+
+  const findings = React.useMemo(() => generateFindings(assets), [assets]);
+  const unreadNotificationCount = React.useMemo(
+    () => notifications.filter((notification) => !notification.seen).length,
+    [notifications],
+  );
+
+  const applyFallbackState = React.useCallback(() => {
+    setAssets(seededAssets);
+    setAlerts(MOCK_ALERTS);
+    setExportHistory([]);
+    setDiscoveryStatus('Not Started');
+    setDiscoveryProgress(seededProgress);
+    bootstrapShownRef.current = false;
+  }, [seededAssets, seededProgress]);
+
+  React.useEffect(() => {
+    if (hasLoadedInitialStateRef.current) {
+      return;
+    }
+
+    hasLoadedInitialStateRef.current = true;
+
+    loadFullState().then((state) => {
+      if (!state.isConfigured) {
+        applyFallbackState();
+        return;
+      }
+
+      const hasRemoteState =
+        state.assets.length > 0 || state.alerts.length > 0 || state.exportHistory.length > 0;
+
+      if (!hasRemoteState) {
+        applyFallbackState();
+        return;
+      }
+
+      const nextAssets = state.assets.length > 0 ? state.assets : seededAssets;
+      const nextAlerts = state.alerts;
+      const nextProgress = Math.min(
+        100,
+        Math.round((nextAssets.length / discoveryQueue.length) * 100),
+      );
+
+      setAssets(nextAssets);
+      setAlerts(nextAlerts);
+      setExportHistory(state.exportHistory);
+      setDiscoveryProgress(nextProgress);
+      setDiscoveryStatus(nextAssets.length > seededAssets.length ? 'Completed' : 'Not Started');
+      bootstrapShownRef.current = nextAssets.length > seededAssets.length;
+    });
+  }, [applyFallbackState, discoveryQueue.length, seededAssets]);
 
   const dismissToast = React.useCallback((toastId: string) => {
     const timeout = toastTimeoutsRef.current[toastId];
@@ -78,6 +141,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       clearTimeout(timeout);
       delete toastTimeoutsRef.current[toastId];
     }
+
     setToasts((prev) => prev.filter((toast) => toast.id !== toastId));
   }, []);
 
@@ -94,17 +158,12 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     }, TOAST_TTL_MS);
   }, []);
 
-  const findings = React.useMemo(() => generateFindings(assets), [assets]);
-  const unreadNotificationCount = React.useMemo(
-    () => notifications.filter((notification) => !notification.seen).length,
-    [notifications],
-  );
-
   const stopMonitoring = React.useCallback(() => {
     if (monitoringIntervalRef.current) {
       clearInterval(monitoringIntervalRef.current);
       monitoringIntervalRef.current = null;
     }
+
     setMonitoringStatus('Idle');
   }, []);
 
@@ -127,7 +186,12 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         setEvents((prev) => [event, ...prev].slice(0, MAX_EVENTS));
 
         if (maybeAlert) {
-          setAlerts((prev) => [maybeAlert, ...prev].slice(0, MAX_ALERTS));
+          setAlerts((prev) => {
+            const nextAlerts = [maybeAlert, ...prev].slice(0, MAX_ALERTS);
+            void saveAlerts(nextAlerts);
+            return nextAlerts;
+          });
+
           pushNotification({
             id: `notification-${maybeAlert.id}`,
             title: maybeAlert.title,
@@ -154,59 +218,80 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+
+    void clearUserState();
     stopMonitoring();
-    setAssets(seededAssets);
     setEvents(MOCK_EVENTS);
-    setAlerts(MOCK_ALERTS);
-    setExportHistory([]);
     setNotifications([]);
     setToasts([]);
+    setMonitoringStatus('Idle');
     setDiscoveryStatus('Not Started');
-    setDiscoveryProgress(Math.round((seededAssets.length / discoveryQueue.length) * 100));
+    setDiscoveryProgress(seededProgress);
     eventCounterRef.current = MOCK_EVENTS.length + 1;
     bootstrapShownRef.current = false;
-  }, [discoveryQueue.length, seededAssets, stopMonitoring]);
+    applyFallbackState();
+  }, [applyFallbackState, seededProgress, stopMonitoring]);
+
+  const resetWorkspace = React.useCallback(async () => {
+    await clearUserState();
+    resetDiscovery();
+    pushToast({
+      id: `toast-reset-${Date.now()}`,
+      title: 'Workspace reset',
+      description: 'Your data has been cleared. Workspace restored to shared baseline.',
+      severity: 'Low',
+    });
+  }, [pushToast, resetDiscovery]);
 
   const acknowledgeAlert = React.useCallback((alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((alert) =>
+    setAlerts((prev) => {
+      const nextAlerts = prev.map((alert) =>
         alert.id === alertId && alert.status === 'Open'
           ? {
               ...alert,
-              status: 'Acknowledged',
+              status: 'Acknowledged' as const,
               updatedAt: new Date().toISOString(),
             }
           : alert,
-      ),
-    );
+      );
+
+      void saveAlerts(nextAlerts);
+      return nextAlerts;
+    });
   }, []);
 
   const resolveAlert = React.useCallback((alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((alert) =>
+    setAlerts((prev) => {
+      const nextAlerts = prev.map((alert) =>
         alert.id === alertId && alert.status !== 'Resolved'
           ? {
               ...alert,
-              status: 'Resolved',
+              status: 'Resolved' as const,
               updatedAt: new Date().toISOString(),
             }
           : alert,
-      ),
-    );
+      );
+
+      void saveAlerts(nextAlerts);
+      return nextAlerts;
+    });
   }, []);
 
   const acknowledgeAllAlerts = React.useCallback(() => {
-    setAlerts((prev) =>
-      prev.map((alert) =>
+    setAlerts((prev) => {
+      const nextAlerts = prev.map((alert) =>
         alert.status === 'Open'
           ? {
               ...alert,
-              status: 'Acknowledged',
+              status: 'Acknowledged' as const,
               updatedAt: new Date().toISOString(),
             }
           : alert,
-      ),
-    );
+      );
+
+      void saveAlerts(nextAlerts);
+      return nextAlerts;
+    });
   }, []);
 
   const exportAlertsToSiem = React.useCallback(
@@ -234,7 +319,12 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
         alertTitles: selectedAlerts.map((alert) => alert.title),
       };
 
-      setExportHistory((prev) => [record, ...prev].slice(0, 6));
+      setExportHistory((prev) => {
+        const nextHistory = [record, ...prev].slice(0, 6);
+        void saveExports(nextHistory);
+        return nextHistory;
+      });
+
       pushNotification({
         id: `notification-${record.id}`,
         title: `Export prepared for ${target}`,
@@ -272,7 +362,13 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     if (!bootstrapShownRef.current) {
       const bootstrapAlerts = createBootstrapAlerts(discoveryQueue.slice(0, 4));
       bootstrapShownRef.current = true;
-      setAlerts((prev) => [...bootstrapAlerts, ...prev].slice(0, MAX_ALERTS));
+
+      setAlerts((prev) => {
+        const nextAlerts = [...bootstrapAlerts, ...prev].slice(0, MAX_ALERTS);
+        void saveAlerts(nextAlerts);
+        return nextAlerts;
+      });
+
       bootstrapAlerts.forEach((alert, index) => {
         setTimeout(() => {
           pushNotification({
@@ -302,6 +398,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
+
         setDiscoveryStatus('Completed');
         setDiscoveryProgress(100);
         return;
@@ -310,7 +407,12 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       const nextAsset = discoveryQueue[nextIndex];
       nextIndex += 1;
 
-      setAssets((prev) => [...prev, nextAsset]);
+      setAssets((prev) => {
+        const nextAssets = [...prev, nextAsset];
+        void saveAssets(nextAssets);
+        return nextAssets;
+      });
+
       setDiscoveryProgress(Math.round((nextIndex / discoveryQueue.length) * 100));
 
       if (nextIndex >= discoveryQueue.length) {
@@ -318,6 +420,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
+
         setDiscoveryStatus('Completed');
         setDiscoveryProgress(100);
       }
@@ -335,13 +438,14 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
     const toastTimeouts = toastTimeoutsRef.current;
 
     return () => {
-
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+
       if (monitoringIntervalRef.current) {
         clearInterval(monitoringIntervalRef.current);
       }
+
       Object.values(toastTimeouts).forEach((timeout) => clearTimeout(timeout));
     };
   }, []);
@@ -374,6 +478,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       exportAlertsToSiem,
       markNotificationsSeen,
       dismissToast,
+      resetWorkspace,
     }),
     [
       acknowledgeAlert,
@@ -381,18 +486,19 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
       alerts,
       assets,
       dismissToast,
+      discoverAssets,
+      discoveryProgress,
+      discoveryStatus,
       events,
       exportAlertsToSiem,
       exportHistory,
       findings,
       markNotificationsSeen,
-      notifications,
-      discoveryProgress,
-      discoveryStatus,
       monitoringStatus,
-      resolveAlert,
-      discoverAssets,
+      notifications,
       resetDiscovery,
+      resetWorkspace,
+      resolveAlert,
       toasts,
       unreadNotificationCount,
     ],

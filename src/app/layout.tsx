@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'My Google AI Studio App',
-  description: 'Converted from React to Next.js',
+  title: 'OTShield',
+  description: 'OT security operations dashboard with AI-assisted triage and Supabase-backed demo state.',
 };
 
 export default function RootLayout({

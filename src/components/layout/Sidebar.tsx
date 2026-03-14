@@ -12,9 +12,12 @@ import {
   FileText,
   Settings,
   Radar,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';
+import { useAuth } from '@/src/components/providers/AuthProvider';
+import { useSimulation } from '@/src/components/providers/SimulationProvider';
 
 interface NavItem {
   id: string;
@@ -35,7 +38,25 @@ const NAV_ITEMS: NavItem[] = [
 
 export const Sidebar = () => {
   const [isSidebarOpen] = React.useState(true);
+  const [showResetConfirm, setShowResetConfirm] = React.useState(false);
+  const [isResetting, setIsResetting] = React.useState(false);
   const pathname = usePathname();
+  const { authEnabled, signOut } = useAuth();
+  const { resetWorkspace } = useSimulation();
+
+  const handleResetWorkspace = async () => {
+    if (isResetting) return;
+    setIsResetting(true);
+    try {
+      await fetch('/api/reset-workspace', { method: 'POST' });
+      await resetWorkspace();
+    } finally {
+      await signOut();
+      setIsResetting(false);
+      setShowResetConfirm(false);
+      window.location.href = '/login';
+    }
+  };
 
   return (
     <motion.aside
@@ -103,12 +124,48 @@ export const Sidebar = () => {
         })}
       </nav>
 
-      <div className="p-6 border-t border-brand-border/30">
+      <div className="p-6 border-t border-brand-border/30 space-y-2">
         <button className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all group">
           <Settings className="w-5 h-5 group-hover:rotate-45 transition-transform duration-500" />
           {isSidebarOpen && <span className="text-sm font-semibold tracking-tight">Settings</span>}
         </button>
+        {authEnabled && (
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all group"
+          >
+            <RotateCcw className="w-5 h-5 group-hover:-rotate-180 transition-transform duration-300" />
+            {isSidebarOpen && <span className="text-sm font-semibold tracking-tight">Reset Workspace</span>}
+          </button>
+        )}
       </div>
+
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm rounded-2xl border border-brand-border/50 bg-brand-card/95 p-6 shadow-2xl">
+            <p className="text-sm font-bold text-zinc-100">Reset workspace?</p>
+            <p className="mt-2 text-xs text-zinc-400">
+              Clear all your assets, alerts, and export history. Shared baseline data will remain.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                disabled={isResetting}
+                className="flex-1 rounded-xl border border-brand-border/50 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 transition-colors hover:bg-white/10 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetWorkspace}
+                disabled={isResetting}
+                className="flex-1 rounded-xl border border-brand-danger/40 bg-brand-danger/20 px-4 py-2.5 text-xs font-bold text-brand-danger transition-colors hover:bg-brand-danger/30 disabled:opacity-50"
+              >
+                {isResetting ? 'Resetting...' : 'Reset'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.aside>
   );
 };

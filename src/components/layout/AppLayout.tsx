@@ -10,11 +10,12 @@ import { ChatWidget } from '@/src/components/ChatWidget';
 
 export const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
+  const showFloatingChat = pathname !== '/copilot';
 
   return (
     <div className="flex h-screen bg-brand-bg text-zinc-100 font-sans selection:bg-brand-primary/30 overflow-hidden">
       <ToastStack />
-      <ChatWidget />
+      {showFloatingChat ? <ChatWidget /> : null}
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden">
         <div className="scanline pointer-events-none" />

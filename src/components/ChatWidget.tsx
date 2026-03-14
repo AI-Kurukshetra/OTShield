@@ -5,44 +5,15 @@ import { Send, Bot, User, MessageSquare, X, Maximize2 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { sendChatMessage } from '@/src/lib/ai/chatApi';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-const initialMessages: Message[] = [
-  {
-    id: '1',
-    role: 'assistant',
-    content: "Hi! I'm OTShield AI. Ask about device risks, alerts, or network threats.",
-    timestamp: new Date(),
-  },
-];
+import { useChat } from '@/src/components/providers/ChatProvider';
 
 const suggestions = ['Why is PLC-1 high risk?', 'Explain recent alerts', 'How to secure Modbus?'];
 
-function getMockResponse(query: string): string {
-  const q = query.toLowerCase();
-  if (q.includes('plc-1'))
-    return 'PLC-1 is High Risk due to unauthorized Modbus calls and outdated firmware (v2.4.1). I recommend isolating the device and applying the latest patch.';
-  if (q.includes('alert'))
-    return "I've analyzed the active alerts. The most critical is a 'Command Injection Attempt' on PLC-1. Other alerts are protocol anomalies in Zone B.";
-  if (q.includes('modbus'))
-    return 'To secure Modbus: 1) Network segmentation (VLANs). 2) DPI firewall for function codes. 3) Monitor polling rates. 4) Use Modbus/TCP Security (TLS) if possible.';
-  return 'Based on current telemetry, traffic is within normal parameters with minor protocol deviations. Would you like a deeper diagnostic on a specific zone?';
-}
-
 export function ChatWidget() {
+  const { messages, isTyping, sendMessage } = useChat();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const messageCounterRef = useRef(initialMessages.length);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -51,39 +22,12 @@ export function ChatWidget() {
   }, [messages, isTyping]);
 
   const handleSend = async (text: string = input) => {
-    if (!text.trim()) return;
+    if (!text.trim()) {
+      return;
+    }
 
-    messageCounterRef.current += 1;
-
-    const userMessage: Message = {
-      id: `msg-${messageCounterRef.current}`,
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
     setInput('');
-    setIsTyping(true);
-
-    const history = [...messages, userMessage].map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }));
-
-    const aiContent = await sendChatMessage(history);
-
-    messageCounterRef.current += 1;
-
-    const aiResponse: Message = {
-      id: `msg-${messageCounterRef.current}`,
-      role: 'assistant',
-      content: aiContent ?? getMockResponse(text),
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, aiResponse]);
-    setIsTyping(false);
+    await sendMessage(text);
   };
 
   return (
@@ -171,6 +115,12 @@ export function ChatWidget() {
                     )}
                   >
                     {msg.content}
+                    <div className="mt-1.5 text-[10px] opacity-40">
+                      {msg.timestamp.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
                   </div>
                 </div>
               ))}

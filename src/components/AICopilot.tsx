@@ -4,24 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, RefreshCcw } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { sendChatMessage } from '@/src/lib/ai/chatApi';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-const initialMessages: Message[] = [
-  {
-    id: '1',
-    role: 'assistant',
-    content:
-      "Hello! I'm OTShield AI Copilot. I can help you analyze industrial security events, assess device risks, or provide security recommendations for your OT environment. What would you like to know today?",
-    timestamp: new Date(),
-  },
-];
+import { useChat } from '@/src/components/providers/ChatProvider';
 
 const suggestions = [
   'Why is PLC-1 high risk?',
@@ -31,11 +14,9 @@ const suggestions = [
 ];
 
 export function AICopilot() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const { messages, isTyping, sendMessage, resetConversation } = useChat();
   const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const messageCounterRef = useRef(initialMessages.length);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -44,50 +25,12 @@ export function AICopilot() {
   }, [messages, isTyping]);
 
   const handleSend = async (text: string = input) => {
-    if (!text.trim()) return;
+    if (!text.trim()) {
+      return;
+    }
 
-    messageCounterRef.current += 1;
-
-    const userMessage: Message = {
-      id: `msg-${messageCounterRef.current}`,
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
     setInput('');
-    setIsTyping(true);
-
-    const history = [...messages, userMessage].map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }));
-
-    const aiContent = await sendChatMessage(history);
-
-    messageCounterRef.current += 1;
-
-    const aiResponse: Message = {
-      id: `msg-${messageCounterRef.current}`,
-      role: 'assistant',
-      content: aiContent ?? getMockResponse(text),
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, aiResponse]);
-    setIsTyping(false);
-  };
-
-  const getMockResponse = (query: string) => {
-    const q = query.toLowerCase();
-    if (q.includes('plc-1'))
-      return 'PLC-1 is currently flagged as High Risk due to multiple unauthorized Modbus function calls detected in the last 24 hours. Additionally, it is running an outdated firmware version (v2.4.1) which is susceptible to CVE-2023-4567. I recommend isolating the device and applying the latest security patch.';
-    if (q.includes('alert'))
-      return "I've analyzed the 12 active alerts. The most critical is a 'Command Injection Attempt' on PLC-1. This appears to be a targeted probe using non-standard function codes. Other alerts are mostly related to protocol anomalies in Zone B.";
-    if (q.includes('modbus'))
-      return 'To secure Modbus devices: 1. Implement network segmentation (VLANs). 2. Use a deep packet inspection (DPI) firewall to filter function codes. 3. Monitor for unusual polling rates. 4. If possible, tunnel Modbus traffic through a secure VPN or use Modbus/TCP Security (TLS).';
-    return "That's an interesting question about your industrial environment. Based on current telemetry, I can see that your network traffic is within normal parameters, but there are some minor protocol deviations in the manufacturing zone. Would you like me to run a deeper diagnostic on a specific zone?";
+    await sendMessage(text);
   };
 
   return (
@@ -104,7 +47,7 @@ export function AICopilot() {
           </div>
         </div>
         <button
-          onClick={() => setMessages(initialMessages)}
+          onClick={resetConversation}
           className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors"
         >
           <RefreshCcw className="w-4 h-4" />

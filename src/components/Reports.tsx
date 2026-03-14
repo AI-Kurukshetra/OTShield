@@ -28,9 +28,10 @@ type ReportCardProps = {
   icon: LucideIcon;
   type: string;
   index: number;
+  onDownload: () => void;
 };
 
-const ReportCard = ({ title, description, date, icon: Icon, type, index }: ReportCardProps) => (
+const ReportCard = ({ title, description, date, icon: Icon, type, index, onDownload }: ReportCardProps) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -65,7 +66,13 @@ const ReportCard = ({ title, description, date, icon: Icon, type, index }: Repor
           <button className="p-2 rounded-xl bg-white/5 border border-white/5 text-zinc-500 hover:text-brand-primary hover:bg-brand-primary/5 transition-all">
             <Share2 className="w-4 h-4" />
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-black rounded-xl text-xs font-black uppercase tracking-widest hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/10">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload();
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-black rounded-xl text-xs font-black uppercase tracking-widest hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/10"
+          >
             <Download className="w-3.5 h-3.5" />
             PDF
           </button>
@@ -77,6 +84,27 @@ const ReportCard = ({ title, description, date, icon: Icon, type, index }: Repor
 
 export const Reports = () => {
   const { assets, alerts, findings, exportHistory, exportAlertsToSiem } = useSimulation();
+
+  const downloadReport = (reportTitle: string, reportType: string) => {
+    const slug = reportTitle.replace(/\s+/g, '-').toLowerCase();
+    let content: string;
+    if (reportType === 'Security') {
+      content = `OTShield – Asset Risk Summary\n${'='.repeat(50)}\nGenerated: ${new Date().toISOString().slice(0, 10)}\n\nDiscovered Assets: ${assets.length}\n\n${assets.map((a) => `- ${a.name} (${a.type}) | Risk: ${a.riskScore} | ${a.location}`).join('\n')}`;
+    } else if (reportType === 'Compliance') {
+      content = `OTShield – Vulnerability Assessment\n${'='.repeat(50)}\nGenerated: ${new Date().toISOString().slice(0, 10)}\n\nOpen Findings: ${findings.length}\n\n${findings.map((f) => `- ${f.title} | ${f.assetName} | Severity: ${f.severity}\n  Mitigation: ${f.mitigation}`).join('\n\n')}`;
+    } else if (reportType === 'Audit') {
+      content = `OTShield – Incident History Log\n${'='.repeat(50)}\nGenerated: ${new Date().toISOString().slice(0, 10)}\n\nTotal Alerts: ${alerts.length}\nActive: ${alerts.filter((a) => a.status !== 'Resolved').length}\n\n${alerts.map((a) => `- [${a.status}] ${a.title} | ${a.severity} | ${a.timestamp}`).join('\n')}`;
+    } else {
+      content = `OTShield – SIEM Export Summary\n${'='.repeat(50)}\nGenerated: ${new Date().toISOString().slice(0, 10)}\n\nExports: ${exportHistory.length}\n\n${exportHistory.map((e) => `- ${e.target} | ${e.alertCount} alerts | ${e.exportedAt}`).join('\n')}`;
+    }
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `otshield-${slug}-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const reportCards = [
     {
@@ -126,7 +154,12 @@ export const Reports = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {reportCards.map((report, i) => (
-          <ReportCard key={i} {...report} index={i} />
+          <ReportCard
+            key={i}
+            {...report}
+            index={i}
+            onDownload={() => downloadReport(report.title, report.type)}
+          />
         ))}
       </div>
 

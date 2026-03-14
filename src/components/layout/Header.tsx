@@ -2,15 +2,20 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Bell, ExternalLink, UploadCloud, User } from 'lucide-react';
+import { Bell, ExternalLink, LogOut, UploadCloud, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { SearchInput } from '@/src/components/common/SearchInput';
 import { useSimulation } from '@/src/components/providers/SimulationProvider';
+import { useAuth } from '@/src/components/providers/AuthProvider';
 import { cn } from '@/src/lib/utils';
 import { getSeverityStyles } from '@/src/lib/severity';
 
 export const Header = () => {
+  const router = useRouter();
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
+  const [isSigningOut, setIsSigningOut] = React.useState(false);
   const { notifications, unreadNotificationCount, markNotificationsSeen } = useSimulation();
+  const { authEnabled, isAuthReady, user, signOut } = useAuth();
   const panelRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -25,6 +30,14 @@ export const Header = () => {
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [isNotificationsOpen]);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await signOut();
+    setIsSigningOut(false);
+    router.replace('/login');
+    router.refresh();
+  };
 
   return (
     <header className="h-20 border-b border-brand-border/30 bg-brand-bg/50 backdrop-blur-md flex items-center justify-between px-10 z-40">
@@ -164,14 +177,37 @@ export const Header = () => {
 
           <div className="flex items-center gap-4 pl-6 border-l border-brand-border/50">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-zinc-100">Kavita Kanvar</p>
-              <p className="text-[9px] font-mono text-brand-primary uppercase tracking-widest">
-                Lead SOC Analyst
-              </p>
+              {authEnabled ? (
+                <>
+                  <p className="text-sm font-bold text-zinc-100">
+                    {isAuthReady ? user?.email ?? 'Authenticated User' : 'Loading session...'}
+                  </p>
+                  <p className="text-[9px] font-mono text-brand-primary uppercase tracking-widest">
+                    Secure workspace
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-zinc-100">Demo Operator</p>
+                  <p className="text-[9px] font-mono text-brand-primary uppercase tracking-widest">
+                    Local mode
+                  </p>
+                </>
+              )}
             </div>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-900 border border-brand-border/50 flex items-center justify-center overflow-hidden shadow-inner group cursor-pointer hover:border-brand-primary/30 transition-all">
               <User className="w-5 h-5 text-zinc-500 group-hover:text-brand-primary transition-colors" />
             </div>
+            {authEnabled && (
+              <button
+                onClick={handleSignOut}
+                disabled={!isAuthReady || isSigningOut}
+                className="hidden rounded-2xl border border-brand-border/50 bg-brand-card/40 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-brand-primary/30 hover:text-brand-primary disabled:cursor-not-allowed disabled:opacity-50 lg:inline-flex lg:items-center lg:gap-2"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+              </button>
+            )}
           </div>
         </div>
       </div>
