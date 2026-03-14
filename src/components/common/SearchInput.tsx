@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React from 'react';
 import { Search } from 'lucide-react';
@@ -12,13 +12,13 @@ interface SearchInputProps {
 }
 
 export const SearchInput = ({
-  placeholder = "Search assets, alerts, or events...",
+  placeholder = 'Search assets, alerts, or events...',
   value,
   onChange,
   className,
 }: SearchInputProps) => {
   return (
-    <div className={cn("relative w-full group", className)}>
+    <div className={cn('relative w-full group', className)}>
       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-brand-primary transition-colors" />
       <input
         type="text"

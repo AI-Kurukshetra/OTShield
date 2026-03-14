@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React from 'react';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
@@ -21,22 +21,31 @@ export const StatCard = ({ title, value, change, icon: Icon, trend, color }: Sta
       <div className="flex items-start justify-between mb-4">
         <div
           className={cn(
-            "p-3 rounded-xl",
-            color === 'brand-primary' ? "bg-brand-primary/10 text-brand-primary" :
-            color === 'brand-danger' ? "bg-brand-danger/10 text-brand-danger" :
-            color === 'brand-warning' ? "bg-brand-warning/10 text-brand-warning" :
-            "bg-brand-secondary/10 text-brand-secondary"
+            'p-3 rounded-xl',
+            color === 'brand-primary'
+              ? 'bg-brand-primary/10 text-brand-primary'
+              : color === 'brand-danger'
+                ? 'bg-brand-danger/10 text-brand-danger'
+                : color === 'brand-warning'
+                  ? 'bg-brand-warning/10 text-brand-warning'
+                  : 'bg-brand-secondary/10 text-brand-secondary',
           )}
         >
           <Icon className="w-6 h-6" />
         </div>
         <div
           className={cn(
-            "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold",
-            trend === 'up' ? "bg-brand-success/10 text-brand-success" : "bg-brand-danger/10 text-brand-danger"
+            'flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold',
+            trend === 'up'
+              ? 'bg-brand-success/10 text-brand-success'
+              : 'bg-brand-danger/10 text-brand-danger',
           )}
         >
-          {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+          {trend === 'up' ? (
+            <ArrowUpRight className="w-3 h-3" />
+          ) : (
+            <ArrowDownRight className="w-3 h-3" />
+          )}
           {change}
         </div>
       </div>
@@ -47,7 +56,10 @@ export const StatCard = ({ title, value, change, icon: Icon, trend, color }: Sta
           initial={{ width: 0 }}
           animate={{ width: trend === 'up' ? '70%' : '40%' }}
           transition={{ duration: 1, delay: 0.5 }}
-          className={cn("h-full rounded-full", trend === 'up' ? "bg-brand-success" : "bg-brand-danger")}
+          className={cn(
+            'h-full rounded-full',
+            trend === 'up' ? 'bg-brand-success' : 'bg-brand-danger',
+          )}
         />
       </div>
     </CyberCard>

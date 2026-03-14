@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React from 'react';
 import Link from 'next/link';
@@ -11,6 +11,7 @@ import {
   MessageSquare,
   FileText,
   Settings,
+  Radar,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion } from 'motion/react';
@@ -27,12 +28,13 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'assets', href: '/assets', label: 'Assets', icon: Shield },
   { id: 'network', href: '/network', label: 'Network Activity', icon: Activity },
   { id: 'alerts', href: '/alerts', label: 'Alerts', icon: AlertTriangle },
+  { id: 'threat-intel', href: '/threat-intel', label: 'Threat Intel', icon: Radar },
   { id: 'copilot', href: '/copilot', label: 'AI Copilot', icon: MessageSquare },
   { id: 'reports', href: '/reports', label: 'Reports', icon: FileText },
 ];
 
 export const Sidebar = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const [isSidebarOpen] = React.useState(true);
   const pathname = usePathname();
 
   return (
@@ -69,18 +71,24 @@ export const Sidebar = () => {
               key={item.id}
               href={item.href}
               className={cn(
-                "w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden",
-                isActive ? "bg-brand-primary/10 text-brand-primary" : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                'w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden',
+                isActive
+                  ? 'bg-brand-primary/10 text-brand-primary'
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5',
               )}
             >
               <item.icon
                 className={cn(
-                  "w-5 h-5 transition-transform duration-300 group-hover:scale-110",
-                  isActive ? "text-brand-primary" : "text-zinc-500 group-hover:text-zinc-400"
+                  'w-5 h-5 transition-transform duration-300 group-hover:scale-110',
+                  isActive ? 'text-brand-primary' : 'text-zinc-500 group-hover:text-zinc-400',
                 )}
               />
               {isSidebarOpen && (
-                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm font-semibold tracking-tight">
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-sm font-semibold tracking-tight"
+                >
                   {item.label}
                 </motion.span>
               )}

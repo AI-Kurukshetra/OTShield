@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { NetworkActivity } from '@/src/components/NetworkActivity';
 

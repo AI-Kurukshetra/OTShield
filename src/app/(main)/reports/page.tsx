@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { Reports } from '@/src/components/Reports';
 

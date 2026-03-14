@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { Alerts } from '@/src/components/Alerts';
 

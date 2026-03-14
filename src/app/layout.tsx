@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "My Google AI Studio App",
-  description: "Converted from React to Next.js",
+  title: 'My Google AI Studio App',
+  description: 'Converted from React to Next.js',
 };
 
 export default function RootLayout({
@@ -13,9 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
-      <body className="antialiased h-full bg-brand-bg text-zinc-100">
-        {children}
-      </body>
+      <body className="antialiased h-full bg-brand-bg text-zinc-100">{children}</body>
     </html>
   );
 }

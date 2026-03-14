@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { Assets } from '@/src/components/Assets';
 

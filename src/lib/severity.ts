@@ -49,7 +49,8 @@ const criticalStyles = {
   dot: 'bg-brand-danger shadow-[0_0_10px_rgba(255,0,85,0.5)]',
   iconBox: 'bg-brand-danger/20 text-brand-danger shadow-brand-danger/10',
   bar: 'bg-brand-danger shadow-[0_0_8px_rgba(255,0,85,0.4)]',
-  badge: 'bg-brand-danger/10 text-brand-danger border-brand-danger/20 shadow-[0_0_12px_rgba(255,0,85,0.2)]',
+  badge:
+    'bg-brand-danger/10 text-brand-danger border-brand-danger/20 shadow-[0_0_12px_rgba(255,0,85,0.2)]',
 };
 
 const SEVERITY_MAP: Record<string, SeverityStyles> = {
