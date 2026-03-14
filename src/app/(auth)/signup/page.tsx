@@ -6,7 +6,7 @@ import React from 'react';
 import { ArrowRight, UserPlus } from 'lucide-react';
 import { CyberCard } from '@/src/components/UI';
 import { PrimaryButton } from '@/src/components/common/Button';
-import { AuthToastStack } from '@/src/components/AuthToast';
+import { useAuthFeedback } from '@/src/components/providers/AuthFeedbackProvider';
 import { getSupabase } from '@/src/lib/supabase/client';
 import { isSupabaseConfigured } from '@/src/lib/supabase/config';
 
@@ -19,16 +19,10 @@ export default function SignupPage() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
-  const [error, setError] = React.useState<string | null>(null);
-  const [success, setSuccess] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { setFeedback, clearFeedback } = useAuthFeedback();
 
   const authEnabled = isSupabaseConfigured();
-
-  const clearToast = React.useCallback(() => {
-    setError(null);
-    setSuccess(null);
-  }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,17 +30,17 @@ export default function SignupPage() {
     const normalizedEmail = email.trim().toLowerCase();
 
     if (!normalizedEmail) {
-      setError('Email is required.');
+      setFeedback('Email is required.', 'error');
       return;
     }
 
     if (!isValidEmail(normalizedEmail)) {
-      setError('Enter a valid email address.');
+      setFeedback('Enter a valid email address.', 'error');
       return;
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+      setFeedback('Password must be at least 8 characters.', 'error');
       return;
     }
 
@@ -56,19 +50,18 @@ export default function SignupPage() {
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setFeedback('Passwords do not match.', 'error');
       return;
     }
 
     const supabase = getSupabase();
     if (!supabase) {
-      setError('Supabase is not configured for authentication in this environment.');
+      setFeedback('Supabase is not configured for authentication in this environment.', 'error');
       return;
     }
 
     setIsSubmitting(true);
-    setError(null);
-    setSuccess(null);
+    clearFeedback();
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: normalizedEmail,
@@ -78,7 +71,7 @@ export default function SignupPage() {
     setIsSubmitting(false);
 
     if (signUpError) {
-      setError(signUpError.message);
+      setFeedback(signUpError.message, 'error');
       return;
     }
 
@@ -88,7 +81,7 @@ export default function SignupPage() {
       return;
     }
 
-    setSuccess('Account created. Check your email to confirm access, then sign in.');
+    setFeedback('Account created. Check your email to confirm access, then sign in.', 'success');
     router.replace('/login?message=Account%20created.%20Check%20your%20email%20to%20confirm%20access.');
   };
 
@@ -119,12 +112,6 @@ export default function SignupPage() {
         </div>
       )}
 
-      <AuthToastStack
-        message={error ?? success ?? ''}
-        variant={error ? 'error' : 'success'}
-        onDismiss={clearToast}
-      />
-
       <form onSubmit={handleSubmit} className="space-y-4" noValidate autoComplete="off">
         <input type="text" name="username" autoComplete="username" className="hidden" tabIndex={-1} />
         <input
@@ -144,7 +131,7 @@ export default function SignupPage() {
             value={email}
             onChange={(event) => {
               setEmail(event.target.value);
-              if (error) setError(null);
+              clearFeedback();
             }}
             placeholder="operator@plant01.com"
             autoComplete="email"
@@ -165,9 +152,7 @@ export default function SignupPage() {
             value={password}
             onChange={(event) => {
               setPassword(event.target.value);
-              if (error) {
-                setError(null);
-              }
+              clearFeedback();
             }}
             placeholder="Use at least 8 characters"
             autoComplete="new-password"
@@ -188,9 +173,7 @@ export default function SignupPage() {
             value={confirmPassword}
             onChange={(event) => {
               setConfirmPassword(event.target.value);
-              if (error) {
-                setError(null);
-              }
+              clearFeedback();
             }}
             placeholder="Re-enter your password"
             autoComplete="new-password"

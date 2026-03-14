@@ -13,23 +13,32 @@ import { getSeverityStyles } from '@/src/lib/severity';
 export const Header = () => {
   const router = useRouter();
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
   const [isSigningOut, setIsSigningOut] = React.useState(false);
   const { notifications, unreadNotificationCount, markNotificationsSeen } = useSimulation();
   const { authEnabled, isAuthReady, user, signOut } = useAuth();
-  const panelRef = React.useRef<HTMLDivElement>(null);
+  const notificationPanelRef = React.useRef<HTMLDivElement>(null);
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    if (!isNotificationsOpen) return;
+    if (!isNotificationsOpen && !isUserMenuOpen) return;
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      if (
+        notificationPanelRef.current &&
+        !notificationPanelRef.current.contains(event.target as Node)
+      ) {
         setIsNotificationsOpen(false);
+      }
+
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
       }
     };
 
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [isNotificationsOpen]);
+  }, [isNotificationsOpen, isUserMenuOpen]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -54,7 +63,7 @@ export const Header = () => {
         </div>
 
         <div className="flex items-center gap-5">
-          <div ref={panelRef} className="relative">
+          <div ref={notificationPanelRef} className="relative">
             <button
               onClick={() => {
                 setIsNotificationsOpen((prev) => !prev);
@@ -175,38 +184,58 @@ export const Header = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-4 pl-6 border-l border-brand-border/50">
-            <div className="text-right hidden sm:block">
-              {authEnabled ? (
-                <>
-                  <p className="text-sm font-bold text-zinc-100">
-                    {isAuthReady ? user?.email ?? 'Authenticated User' : 'Loading session...'}
+          <div ref={userMenuRef} className="relative flex items-center pl-6 border-l border-brand-border/50">
+            <button
+              onClick={() => setIsUserMenuOpen((prev) => !prev)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-border/50 bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-inner transition-all hover:border-brand-primary/30"
+            >
+              <User className="h-5 w-5 text-zinc-500 transition-colors hover:text-brand-primary" />
+            </button>
+
+            {isUserMenuOpen && (
+              <div className="absolute right-0 top-14 z-[85] w-72 overflow-hidden rounded-2xl border border-brand-border/50 bg-brand-card/95 shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                <div className="border-b border-brand-border/30 px-5 py-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary">
+                    User Workspace
                   </p>
-                  <p className="text-[9px] font-mono text-brand-primary uppercase tracking-widest">
-                    Secure workspace
+                  <p className="mt-3 text-sm font-bold text-zinc-100">
+                    {authEnabled
+                      ? isAuthReady
+                        ? user?.email ?? 'Authenticated User'
+                        : 'Loading session...'
+                      : 'Demo Operator'}
                   </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-bold text-zinc-100">Demo Operator</p>
-                  <p className="text-[9px] font-mono text-brand-primary uppercase tracking-widest">
-                    Local mode
+                  <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-zinc-500">
+                    {authEnabled ? 'Secure workspace' : 'Local demo mode'}
                   </p>
-                </>
-              )}
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-900 border border-brand-border/50 flex items-center justify-center overflow-hidden shadow-inner group cursor-pointer hover:border-brand-primary/30 transition-all">
-              <User className="w-5 h-5 text-zinc-500 group-hover:text-brand-primary transition-colors" />
-            </div>
-            {authEnabled && (
-              <button
-                onClick={handleSignOut}
-                disabled={!isAuthReady || isSigningOut}
-                className="hidden rounded-2xl border border-brand-border/50 bg-brand-card/40 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-brand-primary/30 hover:text-brand-primary disabled:cursor-not-allowed disabled:opacity-50 lg:inline-flex lg:items-center lg:gap-2"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-              </button>
+                </div>
+
+                <div className="px-5 py-4">
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                      Access
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                      {authEnabled
+                        ? 'Your alerts, exports, and discovered assets are scoped to your authenticated workspace.'
+                        : 'You are viewing the local demo mode with no authentication required.'}
+                    </p>
+                  </div>
+                </div>
+
+                {authEnabled && (
+                  <div className="border-t border-brand-border/30 px-5 py-4">
+                    <button
+                      onClick={handleSignOut}
+                      disabled={!isAuthReady || isSigningOut}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-brand-border/50 bg-brand-card/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-brand-primary/30 hover:text-brand-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

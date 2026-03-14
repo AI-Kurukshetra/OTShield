@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
+import { AuthFeedbackProvider } from '@/src/components/providers/AuthFeedbackProvider';
 
 const featureCards = [
   ['Scoped assets', 'Shared baseline inventory plus user-owned discovery changes.'],
@@ -15,7 +16,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-brand-bg px-6 py-10 text-zinc-100">
+    <AuthFeedbackProvider>
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-brand-bg px-6 py-10 text-zinc-100">
       <motion.div
         className="absolute inset-0 opacity-[0.08]"
         animate={{ backgroundPositionX: ['0%', '100%'] }}
@@ -99,12 +101,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      <Link
-        href="/dashboard"
-        className="absolute left-6 top-6 rounded-full border border-brand-border/50 bg-brand-card/40 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-300 transition-colors hover:border-brand-primary/30 hover:text-brand-primary"
-      >
-        OTShield Demo
-      </Link>
-    </div>
+        <Link
+          href="/dashboard"
+          className="absolute left-6 top-6 rounded-full border border-brand-border/50 bg-brand-card/40 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-300 transition-colors hover:border-brand-primary/30 hover:text-brand-primary"
+        >
+          OTShield Demo
+        </Link>
+      </div>
+    </AuthFeedbackProvider>
   );
 }

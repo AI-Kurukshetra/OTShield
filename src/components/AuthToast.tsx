@@ -7,7 +7,7 @@ import { cn } from '@/src/lib/utils';
 
 const AUTH_TOAST_DURATION_MS = 5000;
 
-type AuthToastVariant = 'error' | 'success';
+export type AuthToastVariant = 'error' | 'success';
 
 interface AuthToastProps {
   message: string;

@@ -6,7 +6,7 @@ import React from 'react';
 import { ArrowRight, KeyRound, ShieldCheck } from 'lucide-react';
 import { CyberCard } from '@/src/components/UI';
 import { PrimaryButton } from '@/src/components/common/Button';
-import { AuthToastStack } from '@/src/components/AuthToast';
+import { useAuthFeedback } from '@/src/components/providers/AuthFeedbackProvider';
 import { getSupabase } from '@/src/lib/supabase/client';
 import { isSupabaseConfigured } from '@/src/lib/supabase/config';
 
@@ -18,22 +18,18 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
-  const [error, setError] = React.useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { setFeedback, clearFeedback } = useAuthFeedback();
 
   const authEnabled = isSupabaseConfigured();
-
-  const clearToast = React.useCallback(() => {
-    setError(null);
-    setSuccessMessage(null);
-  }, []);
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const msg = params.get('message');
-    if (msg) setSuccessMessage(msg);
-  }, []);
+    if (msg) {
+      setFeedback(msg, 'success');
+    }
+  }, [setFeedback]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -41,17 +37,17 @@ export default function LoginPage() {
     const normalizedEmail = email.trim().toLowerCase();
 
     if (!normalizedEmail) {
-      setError('Email is required.');
+      setFeedback('Email is required.', 'error');
       return;
     }
 
     if (!isValidEmail(normalizedEmail)) {
-      setError('Enter a valid email address.');
+      setFeedback('Enter a valid email address.', 'error');
       return;
     }
 
     if (!password) {
-      setError('Password is required.');
+      setFeedback('Password is required.', 'error');
       return;
     }
 
@@ -62,12 +58,12 @@ export default function LoginPage() {
 
     const supabase = getSupabase();
     if (!supabase) {
-      setError('Supabase is not configured for authentication in this environment.');
+      setFeedback('Supabase is not configured for authentication in this environment.', 'error');
       return;
     }
 
     setIsSubmitting(true);
-    setError(null);
+    clearFeedback();
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
@@ -77,7 +73,7 @@ export default function LoginPage() {
     setIsSubmitting(false);
 
     if (signInError) {
-      setError(signInError.message);
+      setFeedback(signInError.message, 'error');
       return;
     }
 
@@ -113,12 +109,6 @@ export default function LoginPage() {
         </div>
       )}
 
-      <AuthToastStack
-        message={error ?? successMessage ?? ''}
-        variant={error ? 'error' : 'success'}
-        onDismiss={clearToast}
-      />
-
       <form onSubmit={handleSubmit} className="space-y-4" noValidate autoComplete="off">
         <input type="text" name="username" autoComplete="username" className="hidden" tabIndex={-1} />
         <input
@@ -138,7 +128,7 @@ export default function LoginPage() {
             value={email}
             onChange={(event) => {
               setEmail(event.target.value);
-              if (error) setError(null);
+              clearFeedback();
             }}
             placeholder="analyst@plant01.com"
             autoComplete="email"
@@ -159,9 +149,7 @@ export default function LoginPage() {
             value={password}
             onChange={(event) => {
               setPassword(event.target.value);
-              if (error) {
-                setError(null);
-              }
+              clearFeedback();
             }}
             placeholder="Enter your password"
             autoComplete="new-password"
