@@ -1,0 +1,5 @@
+{
+  "name": "OTShield",
+  "description": "Modern industrial cybersecurity dashboard for OT/ICS environments.",
+  "requestFramePermissions": []
+}
